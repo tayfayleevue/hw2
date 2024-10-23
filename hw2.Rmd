@@ -1,0 +1,78 @@
+---
+title: "hw2"
+author: "Faith Vue"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(shiny)
+library(tidyverse)
+library(lubridate)
+library(data.table)
+```
+
+
+```{r}
+personality_types <- read_csv("https://raw.githubusercontent.com/tayfayleevue/hw2/refs/heads/main/data.csv")
+
+setnames(personality_types, "Thinking Score", "thinking_score")
+setnames(personality_types, "Judging Score", "judging_score")
+
+personality <- pull(personality_types, Personality)|>
+  unique() |>
+  na.omit()
+gender <- pull(personality_types, Gender) |>
+  unique() |>
+  na.omit()
+cleaned_age <- personality_types$Age[!is.na(personality_types$Age & personality_types$Age != "")]
+
+scatterplot <- function(df) {
+  ggplot(df) +
+    geom_point(
+      aes(x = thinking_score, y = judging_score, size = selected, alpha = selected, color = selected)
+    ) +
+    scale_size(limits = c(0, 1), range = c(.5, 2), guide = "none") +
+    scale_alpha(limits = c(0, 1), range = c(.1, 1), guide = "none") +
+    labs(color = "Blue = fits selected criteria, Grey/Black = not selected criteria")
+}
+
+
+ui <- fluidPage(
+  titlePanel("Judging v Thinking Personality Types"),
+  
+  selectInput("Gender", "Male or Female", gender),
+  
+  selectInput("Personality", "Personality Type", personality),
+  
+  sliderInput("Age", "Ages", 
+              min = min(cleaned_age, na.rm = TRUE), 
+              max = max(cleaned_age, na.rm = TRUE), 
+              value = c(18, 57), 
+              sep = ""),
+  
+  plotOutput("scatterPlot")
+)
+server <- function(input, output) {
+  filtered_data <- reactive({
+    personality_types |>
+      mutate(selected = 1 * (
+        (Personality %in% input$Personality) &
+        (Gender %in% input$Gender) &
+        (Age >= input$Age[1]) &
+        (Age <= input$Age[2])
+      ))
+  })
+  
+  output$scatterPlot <- renderPlot({
+    scatterplot(filtered_data())
+  })
+}
+
+app <- shinyApp(ui, server)
+app
+```
+
+
